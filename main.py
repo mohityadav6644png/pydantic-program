@@ -1,11 +1,28 @@
 from fastapi import FastAPI,Path,HTTPException,Query 
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel,Field,computed_field
-from typing import Literal,Annotated
+from typing import Literal,Annotated,Optional
 import json
 
 
 app = FastAPI()
+
+
+class updataPatient(BaseModel):
+    
+    name:Annotated[Optional[str],Field(default=None)]
+    
+    city:Annotated[Optional[str],Field(default=None)]
+    
+    age:Annotated[Optional[int],Field(default=None,gt=0)]
+    
+    gender:Annotated[Optional[Literal['male','female']],Field(default=None)]
+    
+    height:Annotated[Optional[float],Field(default=None,gt=1.0)]
+    
+    weight:Annotated[Optional[float],Field(default=None,gt=10)]
+
+
 
 class Patient(BaseModel):
     
@@ -54,19 +71,44 @@ def create(object:Patient):
 
     data_save(data)
 
-    return JSONResponse(status_code=201,contant={'massage':"patient created succefully"})
+    return JSONResponse(status_code=201,content={'massage':"patient created succefully"})
 
+@app.delete("/delete/{patient_id}")
 
+def deletepaitent(patient_id:str=Path(...,description="please enter dele id")):
+    data= data_load()
+    if patient_id not in data:
+        raise HTTPException(status_code=404,detail="patient not found")
+    del data[patient_id]
+    data_save(data)
+    return JSONResponse(status_code=200,content={"message":"patient deleted"})
+    
 
+@app.put("/edit/{patient_id}")
+def edit(patient_id:str,update_obj_data:updataPatient):
+    
+    data=data_load()
 
+    if patient_id not in data:
+        raise HTTPException(status_code=404,detail="user not found")
+    update_info=update_obj_data.module_dump(exclude_unset=True)
+    
+    existing_data=data[patient_id]
 
+    for key,value in update_info:
+        existing_data[key]=value
 
+    existing_data['id']=patient_id
+    
+    update_object=Patient(**existing_data)    
 
+    existing_object=update_object.model_dump(exclude="id")
 
+    data[patient_id]=existing_object
 
+    data_save(data)
 
-
-
+    return JSONResponse(status_code=200,contant={'massage':"data is update is sucessfully"})
 
 
 
@@ -96,7 +138,7 @@ def view():
     return data
 
 @app.get("/patient/{patient_id}")
-def view_patient(patient_id:str=Path(...,description="id of the patient is the db ",example="P001")):
+def view_patient(patient_id:str=Path(...,description="id of the patient is the db ",examples="P001")):
 
 
     data=data_load()
@@ -124,5 +166,4 @@ def sort_patients(sort_by:str=Query(...,description="Sort on the basis of height
     sorted_data=sorted(data.values(),key=lambda x:x.get(sort_by,0),reverse=sort_order)
 
     return sorted_data 
-
 
