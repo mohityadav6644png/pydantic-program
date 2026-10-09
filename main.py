@@ -30,30 +30,25 @@ class Patient(BaseModel):
 
     name:Annotated[str,Field(...,description="this is a patient name")]
     city:Annotated[str,Field(...,description="this is a city name")]
-    age:Annotated[int,Field(...,gt=0,it=120,description="this is a patient age")]
+    age:Annotated[int,Field(...,gt=0,le=120,description="this is a patient age")]
     gender :Annotated[Literal["male",'female','other'],Field(...,description="this is a gender")]
-    hight :Annotated[float,Field(...,gt=0.0,it=7.0,description="give me a hight in the meter")]
-    weight:Annotated[float,Field(...,gt=0,it=7.0,description="give me a weight in kgs")]
+    height :Annotated[float,Field(...,gt=0.0,lt=7.0,description="give me a height in the meter")]
+    weight:Annotated[float,Field(...,gt=0,lt=500,description="give me a weight in kgs")]
 
-@computed_field
-@property
-def bmi(self)->float:
-    bmi=round(self.weight/self.hight**2,3)
-    return bmi  
+    @computed_field
+    @property
+    def bmi(self)->float:
+        return round(self.weight / (self.height ** 2), 3)
 
-@computed_field
-@property
-def verdict(self)->str:
-
-
-    if self.bmi<18.5 :
-        return "Underweight"
-
-    elif self.bmi<25 :
-        return "Normal"
-
-    else :
-        return 'obese'
+    @computed_field
+    @property
+    def verdict(self)->str:
+        if self.bmi < 18.5:
+            return "Underweight"
+        elif self.bmi < 25:
+            return "Normal"
+        else:
+            return "Obese"
 
 
 @app.post("/create")
@@ -85,30 +80,27 @@ def deletepaitent(patient_id:str=Path(...,description="please enter dele id")):
     
 
 @app.put("/edit/{patient_id}")
-def edit(patient_id:str,update_obj_data:updataPatient):
+def edit(patient_id:str, update_obj_data:updataPatient):
     
     data=data_load()
 
     if patient_id not in data:
         raise HTTPException(status_code=404,detail="user not found")
-    update_info=update_obj_data.module_dump(exclude_unset=True)
     
-    existing_data=data[patient_id]
+    update_info=update_obj_data.model_dump(exclude_unset=True)
+    existing_data=data[patient_id].copy()
 
-    for key,value in update_info:
-        existing_data[key]=value
+    for key, value in update_info.items():
+        existing_data[key] = value
 
-    existing_data['id']=patient_id
+    existing_data['id'] = patient_id
     
-    update_object=Patient(**existing_data)    
-
-    existing_object=update_object.model_dump(exclude="id")
-
-    data[patient_id]=existing_object
+    update_object=Patient(**existing_data)
+    data[patient_id] = update_object.model_dump(exclude={'id'})
 
     data_save(data)
 
-    return JSONResponse(status_code=200,contant={'massage':"data is update is sucessfully"})
+    return JSONResponse(status_code=200, content={'message': 'data updated successfully'})
 
 
 
